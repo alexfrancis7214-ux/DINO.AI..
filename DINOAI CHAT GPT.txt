@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Dino.ai — Full</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#151c35; --muted:#8fa1c7; --accent:#40e6a8; --accent-2:#5bb8ff; --text:#e9f0ff; --danger:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto; background:linear-gradient(180deg,#04060a,#07102a); color:var(--text)}
+    .wrap{display:flex;min-height:100vh;gap:18px;padding:18px}
+    /* Sidebar */
+    .sidebar{width:220px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.6)}
+    .menu-title{font-weight:800;margin-bottom:12px;color:var(--accent-2)}
+    .nav button{display:block;width:100%;text-align:left;padding:10px;border-radius:10px;border:none;background:transparent;color:var(--text);cursor:pointer;margin-bottom:8px;font-size:15px}
+    .nav button.active{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#021018;font-weight:700}
+    .nav button:hover{transform:translateY(-1px)}
+    /* Content */
+    .content{flex:1;display:flex;flex-direction:column;gap:18px}
+    .card{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.5)}
+    h1,h2{margin:0;font-weight:700}
+    .hint{font-size:13px;color:var(--muted);margin-top:6px}
+    .chat-log{height:220px;overflow:auto;background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;margin-top:10px}
+    .chat-log div{padding:6px;border-radius:6px;margin-bottom:6px}
+    .chat-log .user{background:rgba(255,255,255,0.03);text-align:right}
+    .chat-log .bot{background:rgba(255,255,255,0.02);text-align:left}
+    .row{display:flex;gap:8px;margin-top:10px}
+    input,select,textarea{padding:8px;border-radius:8px;border:0;background:rgba(255,255,255,0.02);color:var(--text);outline:none}
+    button.primary{background:var(--accent);border:none;padding:8px 12px;border-radius:10px;cursor:pointer;color:#001318;font-weight:700}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text);padding:8px;border-radius:8px}
+    .avatar-grid{display:grid;grid-template-columns:360px 1fr;gap:12px;align-items:start}
+    canvas#avatarCanvas{width:100%;height:auto;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);display:block}
+    .stories-controls{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+    .stories-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+    .story-card{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;font-size:14px}
+    /* Game */
+    #gameMount{width:100%;height:180px;background:linear-gradient(180deg,#9ad0ff,#66b3ff);border-radius:8px;overflow:hidden;position:relative}
+    #gameCanvas{width:100%;height:100%;display:block}
+    .game-controls{display:flex;gap:10px;align-items:center;margin-top:8px}
+    .score{font-weight:700;color:var(--accent-2)}
+    footer{margin-top:8px;color:var(--muted);font-size:13px}
+    @media(max-width:900px){ .wrap{flex-direction:column} .sidebar{width:100%;display:flex;flex-direction:row;overflow:auto} .nav button{flex:1;white-space:nowrap}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside class="sidebar card">
+      <div class="menu-title">Dino.ai — Alpha</div>
+      <nav class="nav" id="nav">
+        <button data-target="home" class="active">🏠 Home</button>
+        <button data-target="chat">💬 Chat</button>
+        <button data-target="avatar">🧩 Avatar</button>
+        <button data-target="music">🎵 Music</button>
+        <button data-target="games">🎮 Games</button>
+        <button data-target="stories">📚 Stories</button>
+      </nav>
+      <div class="hint" style="margin-top:12px">Try: "green dino with sunglasses", "play", "tempo 1.5", or press Space to jump in the game.</div>
+    </aside>
+
+    <main class="content">
+      <!-- HOME -->
+      <section id="home" class="active card">
+        <div style="display:flex;gap:14px;align-items:center">
+          <div style="flex:1">
+            <h1>🦖 Dino.ai</h1>
+            <p class="hint">Everything in this page is integrated: Chat, Avatar drawing, Music (real audio), a playable Dino Runner, and a library of 200 stories.</p>
+          </div>
+          <div style="width:220px">
+            <svg viewBox="0 0 200 120" style="width:100%;height:100%">
+              <defs><linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#40e6a8"/><stop offset="100%" stop-color="#5bb8ff"/></linearGradient></defs>
+              <rect x="0" y="0" width="200" height="120" rx="12" fill="url(#g1)" opacity="0.18"/>
+              <g transform="translate(60,60)"><circle r="28" fill="none" stroke="#fff" opacity="0.5" stroke-width="4"/><polygon points="-6,-12 -6,12 16,0" fill="#fff"/></g>
+              <text x="16" y="108" fill="#fff" opacity="0.9" font-size="10">Teaser: Dinopod — tap ▶ to imagine</text>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHAT -->
+      <section id="chat" class="card">
+        <h2>💬 Chat</h2>
+        <div id="chatLog" class="chat-log"></div>
+        <div class="row">
+          <input id="chatInput" placeholder="Say hi to Dino… (try: joke, hello, avatar tips)"/>
+          <button class="primary" id="sendBtn">Send</button>
+        </div>
+      </section>
+
+      <!-- AVATAR -->
+      <section id="avatar" class="card">
+        <h2>🧩 Avatar Creator</h2>
+        <div class="avatar-grid">
+          <canvas id="avatarCanvas" width="360" height="360"></canvas>
+          <div>
+            <p class="hint">Describe your dino: color, hat, sunglasses, small/large. Examples: <em>green dino with sunglasses</em>, <em>small blue dino with red hat</em>.</p>
+            <div class="row">
+              <input id="avatarPrompt" placeholder="e.g., small green dino with sunglasses"/>
+              <button class="primary" id="avatarBtn">Create</button>
+            </div>
+            <div style="margin-top:10px" class="hint">Tip: words recognized: red, green, blue, yellow, small, large, sunglasses, hat, spikes.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MUSIC -->
+      <section id="music" class="card">
+        <h2>🎵 Music Bot</h2>
+        <p class="hint">Commands: <code>play</code>, <code>stop</code>, <code>tempo 1.5</code>, <code>instrument sine|triangle|square</code></p>
+        <div class="row">
+          <input id="musicInput" placeholder="e.g. play melody or tempo 1.2 or instrument square"/>
+          <button class="primary" id="musicSend">Run</button>
+        </div>
+        <div id="nowPlaying" class="hint" style="margin-top:8px"></div>
+      </section>
+
+      <!-- GAMES -->
+      <section id="games" class="card">
+        <h2>🎮 Games — Dino Runner</h2>
+        <div id="gameMount">
+          <canvas id="gameCanvas" width="800" height="180"></canvas>
+        </div>
+        <div class="game-controls">
+          <button class="primary" id="startGame">Start</button>
+          <button class="ghost" id="resetGame">Reset</button>
+          <div class="score" id="gameScore">Score: 0</div>
+          <div class="hint" style="margin-left:auto">Controls: Space or Tap to jump</div>
+        </div>
+      </section>
+
+      <!-- STORIES -->
+      <section id="stories" class="card">
+        <h2>📚 Dino Stories (200)</h2>
+        <div class="stories-controls">
+          <input id="storySearch" placeholder="Search stories..." />
+          <select id="storySort"><option value="az">Sort A→Z</option><option value="za">Sort Z→A</option><option value="len">Sort by length</option></select>
+          <button class="primary" id="storyReload">Shuffle</button>
+        </div>
+        <div id="storiesGrid" class="stories-grid"></div>
+      </section>
+
+      <footer class="hint">Saved locally in your browser. No server required.</footer>
+    </main>
+  </div>
+
+<script>
+/* ----------------------
+   NAVIGATION
+   ---------------------- */
+document.querySelectorAll(".nav button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.target).classList.add("active");
+  });
+});
+
+/* ----------------------
+   CHAT BOT (smart-ish)
+   ---------------------- */
+const chatLog = document.getElementById("chatLog");
+function addChat(who, text){
+  const d = document.createElement("div");
+  d.className = who==="you" ? "user" : "bot";
+  d.innerText = (who==="you" ? "You: " : "Dino: ") + text;
+  chatLog.appendChild(d);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+document.getElementById("sendBtn").addEventListener("click", ()=>{
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
+  if(!text) return;
+  addChat("you", text);
+  input.value = "";
+  setTimeout(()=>{ handleChat(text); }, 250);
+});
+function handleChat(text){
+  const t = text.toLowerCase();
+  if(t.includes("joke")) return addChat("bot","Why did the dino cross the road? Because the chicken hadn’t been invented yet!");
+  if(t.includes("avatar")) return addChat("bot","Try prompts like: 'green dino with sunglasses' or 'small blue dino with hat'.");
+  if(t.includes("hello")||t.includes("hi")) return addChat("bot","Hi! I'm Dino 🦖 — I can draw, play music, and run games.");
+  if(t.includes("play") && t.includes("music")) return addChat("bot","Open the Music tab and type 'play' to hear a melody.");
+  // fallback: friendly echo with tiny "AI" flair
+  const replies = [
+    "Roar! That sounds interesting.",
+    "I like that — tell me more!",
+    "Rawr! Let's try that in Avatar or Music.",
+    "Dino thinks that's cool!"
+  ];
+  addChat("bot", replies[Math.floor(Math.random()*replies.length)]);
+}
+
+/* ----------------------
+   AVATAR BOT (Canvas drawing)
+   ---------------------- */
+const avatarCanvas = document.getElementById("avatarCanvas");
+const actx = avatarCanvas.getContext("2d");
+function drawDino(opts){
+  const w = avatarCanvas.width, h = avatarCanvas.height;
+  actx.clearRect(0,0,w,h);
+  // background circle
+  actx.fillStyle = "rgba(255,255,255,0.02)";
+  actx.beginPath(); actx.arc(w/2,h/2,150,0,Math.PI*2); actx.fill();
+
+  // body
+  actx.fillStyle = opts.color;
+  actx.beginPath();
+  actx.ellipse(w/2, h*0.6, opts.bodyW, opts.bodyH, 0, 0, Math.PI*2);
+  actx.fill();
+
+  // head
+  actx.beginPath();
+  actx.arc(w/2, h*0.36, opts.headR, 0, Math.PI*2);
+  actx.fill();
+
+  // belly
+  actx.fillStyle = lighten(opts.color,0.25);
+  actx.beginPath();
+  actx.ellipse(w/2, h*0.66, opts.bodyW*0.6, opts.bodyH*0.5, 0, 0, Math.PI*2);
+  actx.fill();
+
+  // eye
+  actx.fillStyle = "#fff";
+  actx.beginPath(); actx.arc(w/2 - opts.headR*0.3, h*0.34, opts.eyeR, 0, Math.PI*2); actx.fill();
+  actx.beginPath(); actx.arc(w/2 + opts.headR*0.3, h*0.34, opts.eyeR, 0, Math.PI*2); actx.fill();
+  actx.fillStyle = "#000";
+  actx.beginPath(); actx.arc(w/2 - opts.headR*0.3, h*0.34, opts.pupilR, 0, Math.PI*2); actx.fill();
+  actx.beginPath(); actx.arc(w/2 + opts.headR*0.3, h*0.34, opts.pupilR, 0, Math.PI*2); actx.fill();
+
+  // spikes
+  if(opts.spikes){
+    const spikeCount = 6;
+    for(let i=0;i<spikeCount;i++){
+      const x = w/2 - opts.bodyW*0.8 + (i*(opts.bodyW*1.6/(spikeCount-1)));
+      const y = h*0.45 - Math.abs(i - spikeCount/2)*4;
+      actx.fillStyle = darken(opts.color,0.15);
+      actx.beginPath();
+      actx.moveTo(x,y);
+      actx.lineTo(x+12,y-24);
+      actx.lineTo(x+24,y);
+      actx.closePath();
+      actx.fill();
+    }
+  }
+
+  // sunglasses
+  if(opts.sunglasses){
+    actx.fillStyle = "#000";
+    actx.fillRect(w/2 - 36, h*0.32 - 10, 28, 20);
+    actx.fillRect(w/2 + 8, h*0.32 - 10, 28, 20);
+    actx.fillStyle = "#222";
+    actx.fillRect(w/2 - 8, h*0.32 - 3, 16, 6);
+  }
+
+  // hat
+  if(opts.hat){
+    actx.fillStyle = opts.hatColor || "#7a3e1d";
+    actx.fillRect(w/2 - 56, h*0.36 - opts.headR - 18, 112, 18);
+    actx.fillStyle = darken(opts.hatColor || "#7a3e1d",0.12);
+    actx.fillRect(w/2 - 30, h*0.36 - opts.headR - 40, 60, 24,);
+  }
+
+  // smile
+  actx.strokeStyle = "#000";
+  actx.lineWidth = 2;
+  actx.beginPath();
+  actx.arc(w/2, h*0.42, 22, 0.1*Math.PI, 0.9*Math.PI);
+  actx.stroke();
+}
+function lighten(col, amt){ // simple hex->lighter
+  try{
+    const c = hexToRgb(col);
+    return `rgb(${Math.min(255,Math.round(c.r + (255-c.r)*amt))},${Math.min(255,Math.round(c.g + (255-c.g)*amt))},${Math.min(255,Math.round(c.b + (255-c.b)*amt))})`;
+  }catch(e){ return col; }
+}
+function darken(col, amt){
+  try{
+    const c = hexToRgb(col);
+    return `rgb(${Math.max(0,Math.round(c.r*(1-amt)))},${Math.max(0,Math.round(c.g*(1-amt)))},${Math.max(0,Math.round(c.b*(1-amt)))})`;
+  }catch(e){ return col; }
+}
+function hexToRgb(hex){
+  hex = hex.replace("#","").trim();
+  if(hex.length===3) hex = hex.split("").map(ch=>ch+ch).join("");
+  const int = parseInt(hex,16);
+  return { r:(int>>16)&255, g:(int>>8)&255, b:int&255 };
+}
+function parseAvatarPrompt(prompt){
+  const p = prompt.toLowerCase();
+  // color
+  let color = "#40e6a8";
+  if(p.includes("red")) color = "#ff6b6b";
+  if(p.includes("green")) color = "#40e6a8";
+  if(p.includes("blue")) color = "#5bb8ff";
+  if(p.includes("yellow")) color = "#ffd166";
+  if(p.includes("gold")) color = "#f4c150";
+  if(p.includes("purple")) color = "#c389ff";
+  // size
+  let small = p.includes("small");
+  let large = p.includes("large");
+  const bodyW = large ? 150 : small ? 70 : 100;
+  const bodyH = large ? 80 : small ? 40 : 60;
+  const headR = large ? 70 : small ? 30 : 50;
+  const eyeR = Math.max(4, Math.round(headR*0.15));
+  const pupilR = Math.max(2, Math.round(headR*0.07));
+  return {
+    color, bodyW, bodyH, headR, eyeR, pupilR,
+    sunglasses: p.includes("sunglass")||p.includes("glasses"),
+    hat: p.includes("hat"),
+    hatColor: p.includes("red hat") ? "#d34d4d" : p.includes("blue hat") ? "#3b86ff" : "#7a3e1d",
+    spikes: p.includes("spike")||p.includes("spikes")||p.includes("spiny")
+  };
+}
+document.getElementById("avatarBtn").addEventListener("click", ()=>{
+  const prompt = document.getElementById("avatarPrompt").value || "green dino";
+  const opts = parseAvatarPrompt(prompt);
+  drawDino(opts);
+});
+
+/* draw default */
+drawDino(parseAvatarPrompt("green dino with sunglasses"));
+
+/* ----------------------
+   MUSIC BOT (Web Audio)
+   ---------------------- */
+let audioCtx = null;
+let masterGain = null;
+let currentNodes = [];
+let tempo = 1;
+let instrument = 'sine';
+const nowPlaying = document.getElementById("nowPlaying");
+document.getElementById("musicSend").addEventListener("click", ()=>{
+  const cmd = document.getElementById("musicInput").value.trim();
+  if(!cmd) return;
+  handleMusicCommand(cmd);
+  document.getElementById("musicInput").value = "";
+});
+function handleMusicCommand(cmd){
+  const c = cmd.toLowerCase();
+  if(c.startsWith("play")){
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(!masterGain){ masterGain = audioCtx.createGain(); masterGain.gain.value = 0.12; masterGain.connect(audioCtx.destination); }
+    stopMusic();
+    playMelody();
+    nowPlaying.textContent = "Playing melody — instrument: "+instrument+" — tempo: "+tempo;
+  } else if(c.startsWith("stop")){
+    stopMusic();
+    nowPlaying.textContent = "Stopped.";
+  } else if(c.startsWith("tempo")){
+    const parts = c.split(/\s+/);
+    const v = parseFloat(parts[1]);
+    if(!isNaN(v) && v>0){ tempo = v; nowPlaying.textContent = "Tempo set to "+tempo; }
+  } else if(c.startsWith("instrument")){
+    const parts = c.split(/\s+/);
+    if(parts[1]){ instrument = parts[1]; nowPlaying.textContent = "Instrument set to "+instrument; }
+  } else {
+    nowPlaying.textContent = "Unknown command.";
+  }
+}
+function playMelody(){
+  // simple melody pattern
+  const notes = [ 261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25 ];
+  let t = audioCtx.currentTime + 0.05;
+  const beat = 0.35 / tempo;
+  notes.forEach((freq,i)=>{
+    const osc = audioCtx.createOscillator();
+    osc.type = instrument;
+    osc.frequency.value = freq;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0, t + i*beat);
+    g.gain.linearRampToValueAtTime(1*0.8, t + i*beat + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.01, t + (i+1)*beat);
+    osc.connect(g); g.connect(masterGain);
+    osc.start(t + i*beat);
+    osc.stop(t + (i+1)*beat + 0.02);
+    currentNodes.push(osc);
+  });
+  // schedule clean-up
+  setTimeout(()=>{ currentNodes = []; }, (notes.length+1)*beat*1000);
+}
+function stopMusic(){
+  if(currentNodes.length>0){
+    currentNodes.forEach(n=>{ try{ n.stop(); }catch(e){} });
+    currentNodes = [];
+  }
+}
+
+/* ----------------------
+   GAMES — Dino Runner
+   ---------------------- */
+const gameCanvas = document.getElementById("gameCanvas");
+const gctx = gameCanvas.getContext("2d");
+let gw = gameCanvas.width, gh = gameCanvas.height;
+function resizeGame(){ gw = gameCanvas.width = gameCanvas.clientWidth * devicePixelRatio; gh = gameCanvas.height = gameCanvas.clientHeight * devicePixelRatio; scale = devicePixelRatio; }
+window.addEventListener('resize', ()=>{ resizeGame(); drawStatic(); });
+resizeGame();
+
+let gameState = "stopped"; // stopped|running|over
+let player = {x:80, y:0, vy:0, w:36, h:36, grounded:false};
+let gravity = 1500;
+let groundY = 140 * devicePixelRatio;
+let obstacles = [];
+let spawnTimer = 0;
+let score = 0;
+let lastTime = null;
+let scale = devicePixelRatio;
+
+function resetGame(){
+  obstacles = [];
+  player.y = groundY - player.h;
+  player.vy = 0;
+  player.grounded = true;
+  spawnTimer = 0; score = 0; lastTime = null;
+  gameState = "stopped";
+  document.getElementById("gameScore").innerText = "Score: 0";
+  drawStatic();
+}
+function startGame(){
+  if(gameState === "running") return;
+  resetGame();
+  gameState = "running";
+  lastTime = performance.now();
+  requestAnimationFrame(gameLoop);
+}
+document.getElementById("startGame").addEventListener("click", startGame);
+document.getElementById("resetGame").addEventListener("click", resetGame);
+
+function spawnObstacle(){
+  const h = (20 + Math.random()*40) * scale;
+  const w = (12 + Math.random()*20) * scale;
+  obstacles.push({x: gw + 20, y: groundY - h, w, h});
+}
+function gameLoop(ts){
+  if(gameState !== "running") return;
+  const dt = Math.min(100, ts - (lastTime || ts)) / 1000; lastTime = ts;
+  // physics
+  player.vy += gravity * dt;
+  player.y += player.vy * dt;
+  if(player.y >= groundY - player.h){ player.y = groundY - player.h; player.vy = 0; player.grounded = true; }
+  // spawn obstacles
+  spawnTimer -= dt;
+  if(spawnTimer <= 0){ spawnObstacle(); spawnTimer = 0.9 - Math.min(0.6, score/200); }
+  // move obstacles
+  const speed = 220 + Math.min(400, score*0.6);
+  for(let i=obstacles.length-1;i>=0;i--){
+    obstacles[i].x -= speed * dt;
+    if(obstacles[i].x + obstacles[i].w < -50) obstacles.splice(i,1);
+    // collision
+    if(rectOverlap(player.x, player.y, player.w, player.h, obstacles[i].x, obstacles[i].y, obstacles[i].w, obstacles[i].h)){
+      gameOver(); return;
+    }
+  }
+  // scoring
+  score += dt * 100;
+  document.getElementById("gameScore").innerText = "Score: " + Math.floor(score);
+  // draw
+  drawScene();
+  requestAnimationFrame(gameLoop);
+}
+function rectOverlap(x1,y1,w1,h1,x2,y2,w2,h2){
+  return !(x1+w1 < x2 || x1 > x2+w2 || y1+h1 < y2 || y1 > y2+h2);
+}
+function gameOver(){
+  gameState = "over";
+  // simple flash
+  gctx.fillStyle = "rgba(255,0,0,0.12)";
+  gctx.fillRect(0,0,gw,gh);
+  document.getElementById("gameScore").innerText += "  — Game Over";
+}
+function drawStatic(){
+  // draw static scene when idle
+  gctx.clearRect(0,0,gw,gh);
+  // sky
+  gctx.fillStyle = "#9ad0ff";
+  gctx.fillRect(0,0,gw,gh);
+  // ground
+  gctx.fillStyle = "#6b4b2b";
+  gctx.fillRect(0, groundY, gw, gh-groundY);
+  // player
+  drawPlayer();
+}
+function drawScene(){
+  gctx.clearRect(0,0,gw,gh);
+  // sky
+  gctx.fillStyle = "#9ad0ff";
+  gctx.fillRect(0,0,gw,gh);
+  // ground
+  gctx.fillStyle = "#6b4b2b";
+  gctx.fillRect(0, groundY, gw, gh-groundY);
+  // obstacles
+  gctx.fillStyle = "#227722";
+  obstacles.forEach(o=>{
+    gctx.fillRect(o.x, o.y, o.w, o.h);
+  });
+  // player
+  drawPlayer();
+  // score
+  gctx.fillStyle = "#fff";
+  gctx.font = `${16*scale}px Arial`;
+  gctx.fillText("Score: " + Math.floor(score), 10*scale, 24*scale);
+}
+function drawPlayer(){
+  gctx.save();
+  gctx.translate(player.x, player.y);
+  // body
+  gctx.fillStyle = "#40e6a8";
+  gctx.fillRect(0,0,player.w,player.h);
+  // eye
+  gctx.fillStyle = "#fff";
+  gctx.fillRect(player.w*0.55, player.h*0.2, player.w*0.2, player.h*0.2);
+  gctx.fillStyle = "#000";
+  gctx.fillRect(player.w*0.6, player.h*0.25, player.w*0.07, player.h*0.07);
+  gctx.restore();
+}
+// controls
+function jump(){
+  if(gameState!=="running") return;
+  if(player.grounded){
+    player.vy = -620;
+    player.grounded = false;
+  }
+}
+document.addEventListener("keydown", (e)=>{ if(e.code === "Space"){ e.preventDefault(); jump(); }});
+gameCanvas.addEventListener("pointerdown", ()=>{ jump(); });
+resetGame();
+
+/* ----------------------
+   STORIES (200)
+   ---------------------- */
+const stories = [
+"1. The curious dino found a shiny pebble and made a new friend.",
+"2. A small T-rex learned to whistle to call the stars.",
+"3. A brave dino crossed a river to bring back a lost egg.",
+"4. The red dino loved painting trees at sunrise.",
+"5. A baby dino discovered music under a fallen leaf.",
+"6. Two dinos built a tiny raft and floated to a rainbow.",
+"7. The oldest dino told jokes that made the moon laugh.",
+"8. A clever dino solved the riddle of the cave.",
+"9. The dino and the firefly danced till dawn.",
+"10. A dino painted wings on a kite and watched it fly.",
+"11. The shy dino planted a garden and watched it grow.",
+"12. A dino learned to bake with volcanic heat — smoky cookies!",
+"13. The dino wrote a map to the secret waterfall.",
+"14. A dino found a button that made the stars blink.",
+"15. The blue dino loved to collect round, smooth stones.",
+"16. Two friends raced comets across the valley in their dreams.",
+"17. The dino rescued a stranded beetle and gained a guide.",
+"18. A tiny dino sang to help seeds sprout faster.",
+"19. The dino discovered footprints that led to a singing cave.",
+"20. A dino learned that sharing berries made them sweeter.",
+"21. The adventurous dino climbed the tallest fern to see the world.",
+"22. A dinosaur garden became the meeting place for all animals.",
+"23. The dino traded a feather for a lantern of fireflies.",
+"24. A dino invented a new game with rolling pinecones.",
+"25. The dino learned to read clouds like pictures.",
+"26. A dino painted a mural on the canyon wall.",
+"27. The dino and a frog started a lunchtime choir.",
+"28. A dino taught a bird to hop instead of fly for fun.",
+"29. The dino followed a glowing snail to a hidden pond.",
+"30. A dino made shoes from leaves for a muddy day.",
+"31. The dino befriended a wind spirit who loved jokes.",
+"32. A playful dino swapped hats with a passing traveler.",
+"33. The dino learned to weave grass into tiny boats.",
+"34. A dino discovered a cave full of soft echoes.",
+"35. The dino and a rabbit painted the river stones.",
+"36. A dino built a swing from vines to reach the sky.",
+"37. The dino found a mirror that showed future smiles.",
+"38. A dino collected stories from every hilltop they visited.",
+"39. The dino's shadow once told them a secret joke.",
+"40. A dino wrote letters on leaves and tied them to the wind.",
+"41. The dino met a cloud that liked to nap on rocks.",
+"42. A dino built a tiny home for an old beetle.",
+"43. The dino discovered that rain tastes like adventure.",
+"44. A dino learned to make music from hollow bamboo.",
+"45. The dino made friends with a mountain goat that loved riddles.",
+"46. A dino taught fireflies to spell their names with light.",
+"47. The dino created a map made of crumbs and giggles.",
+"48. A dino found a pair of glasses that made colors sing.",
+"49. The dino swapped stories for seeds at the market rock.",
+"50. A dino built a telescope out of polished shells.",
+"51. The dino drew constellations shaped like crackers.",
+"52. A dino learned to juggle pebbles to impress friends.",
+"53. The dino held a feast for lost traveling birds.",
+"54. A dino discovered a field of singing mushrooms.",
+"55. The dino saved a nest during a windy night.",
+"56. A dino taught the river to hum a lullaby.",
+"57. The dino learned that hugs are a kind of medicine.",
+"58. A dino found a bell that chimed only for laughter.",
+"59. The dino raced a shadow and won by smiling.",
+"60. A dino discovered a pond that reflected dreams.",
+"61. The dino painted leaves to guide nocturnal friends.",
+"62. A dino built tiny lanterns to light the path home.",
+"63. The dino baked mud pies and shared them with frogs.",
+"64. A dino traded a story for a necklace of shells.",
+"65. The dino found a canyon that echoed magical rhymes.",
+"66. A dino learned to whistle and call the migrating geese.",
+"67. The dino climbed a waterfall to watch the stars fall.",
+"68. A dino taught its tail to write with a stick.",
+"69. The dino discovered footprints that spelled a riddle.",
+"70. A dino learned to dance with shadows at dusk.",
+"71. The dino brought moonlight to a sleeping town.",
+"72. A dino built a kite from lost songs and flew hope.",
+"73. The dino taught a snail to be brave and race.",
+"74. A dino discovered a secret that made the wind sing.",
+"75. The dino and a mole started a midnight bakery.",
+"76. A dino learned that the best maps are the ones you make with friends.",
+"77. The dino wove a blanket for a chilly day and shared it.",
+"78. A dino found a lost bell and returned it to the valley.",
+"79. The dino learned to plant starlight to grow wishes.",
+"80. A dino made a friend who loved to count raindrops.",
+"81. The dino painted smiles on sleeping rocks to keep them company.",
+"82. A dino learned that the tallest tree listens to secrets.",
+"83. The dino found a pebble that hummed old lullabies.",
+"84. A dino taught two ants to carry a leaf together and called it teamwork.",
+"85. The dino discovered a cave that told time with crystals.",
+"86. A dino traded songs with a river and learned a new tune.",
+"87. The dino sewed patches onto clouds to mend their fluff.",
+"88. A dino found a pocket of still air that kept memories safe.",
+"89. The dino built a tiny ladder to reach a bright idea.",
+"90. A dino taught a fish to climb a small waterfall for a view.",
+"91. The dino discovered the language of pebbles underfoot.",
+"92. A dino held a tea party for beetles and fireflies.",
+"93. The dino learned to carve smiles into old driftwood.",
+"94. A dino taught a twig how to walk and called it magic.",
+"95. The dino collected lost songs and returned them to the trees.",
+"96. A dino found a clock that measured giggles instead of minutes.",
+"97. The dino danced on fog and left footprints of joy.",
+"98. A dino found a secret handshake with the sunrise.",
+"99. The dino learned that some paths are meant to be shared.",
+"100. A dino made a compass that always pointed to kindness.",
+"101. The dino taught a pebble to tell stories to quiet nights.",
+"102. A dino discovered a window to the past made of mist.",
+"103. The dino held lantern lessons for young fireflies.",
+"104. A dino wrote a poem on a leaf and sent it downstream.",
+"105. The dino found a bench that told jokes at noon.",
+"106. A dino learned to braid vines into friendly bracelets.",
+"107. The dino discovered a secret garden behind a waterfall.",
+"108. A dino painted a map with colors only the heart could read.",
+"109. The dino sang a lullaby that made the river sleep softly.",
+"110. A dino taught a cloud how to shape itself into animals.",
+"111. The dino found a bell that rung only in happy moments.",
+"112. A dino learned that the smallest seeds make the tallest trees.",
+"113. The dino made a drum from an old hollow log and played sunset songs.",
+"114. A dino found a mirror that showed new friends instead of faces.",
+"115. The dino sketched shadows and turned them into silly creatures.",
+"116. A dino taught a mouse to play hide-and-seek with the moon.",
+"117. The dino discovered a path that changed color when you laughed.",
+"118. A dino built a tiny theater for leaves to perform plays.",
+"119. The dino found a pocket of warm wind and kept it in a jar.",
+"120. A dino learned to speak in the soft voice of snowflakes (in winter tales).",
+"121. The dino painted a rainbow bridge to join two lonely hills.",
+"122. A dino taught a twig to whistle like a bird for morning songs.",
+"123. The dino found a tune that made even rocks sway gently.",
+"124. A dino discovered a secret handshake with the moon at midnight.",
+"125. The dino made a lantern that glowed with shared dreams.",
+"126. A dino learned that leaves remember sunny days and tell them back.",
+"127. The dino found a pebble that led to a surprising friendship.",
+"128. A dino taught frogs to sing in harmony with the crickets.",
+"129. The dino drew maps that only friends could read together.",
+"130. A dino sewed a quilt of cloud scraps for a chilly night.",
+"131. The dino found echoes that carried compliments to far hills.",
+"132. A dino crafted tiny boats for the ants that liked adventure.",
+"133. The dino discovered a tree that stored old lullabies in its rings.",
+"134. A dino taught a beetle to whistle while it worked.",
+"135. The dino found a hollow rock that hummed like a cello.",
+"136. A dino built a ladder of leaves to reach a secret shelf of stars.",
+"137. The dino learned to braid songs and tie them into ribbons.",
+"138. A dino found the perfect pebble to balance on its nose and laugh.",
+"139. The dino taught a cloud to play peek-a-boo with the sun.",
+"140. A dino discovered that the valley tasted like wild berries after rain.",
+"141. The dino wrote a tiny play and invited the sparrows to perform.",
+"142. A dino learned to count the freckles on a ladybug's back and smiled.",
+"143. The dino found a friendly shadow that loved to travel at dusk.",
+"144. A dino planted a circle of seeds and called it the laughing garden.",
+"145. The dino learned to whistle to call the kind wind home.",
+"146. A dino found a pebble that kept secrets safe between friends.",
+"147. The dino drew a picture that made the river chuckle when it passed.",
+"148. A dino taught a snail to hurry up just a little for fun.",
+"149. The dino found a cave that echoed stories in warm tones.",
+"150. A dino learned that sharing blankets makes them twice as warm.",
+"151. The dino built a tiny stage and put on moonlight concerts.",
+"152. A dino found a hollow log that sang when tapped gently.",
+"153. The dino learned to read the patterns on butterfly wings.",
+"154. A dino collected raindrop music in small jars for rainy days.",
+"155. The dino found a pebble that tasted like summer memories.",
+"156. A dino taught the creek to carry messages to the ocean.",
+"157. The dino painted a smile on the valley when clouds were sad.",
+"158. A dino learned to make shadow puppets that told jokes.",
+"159. The dino found a memory stone that glowed with sunsets.",
+"160. A dino taught the wind to hum lullabies for sleeping fields.",
+"161. The dino learned to fold leaves into paper boats with wishes.",
+"162. A dino found a quiet corner and turned it into a reading nook.",
+"163. The dino taught a beetle to deliver tiny notes to friends.",
+"164. A dino discovered a ribbon that made people dance when touched.",
+"165. The dino learned that small seeds can carry big adventures.",
+"166. A dino built a nest for a traveling sparrow and waved goodbye.",
+"167. The dino painted the dunes in stripes to guide night travelers.",
+"168. A dino found an old tune and added a funny chorus.",
+"169. The dino taught the valley to echo good thoughts loudly.",
+"170. A dino collected old leaves and turned them into storybooks.",
+"171. The dino found a pebble that hummed with old jokes.",
+"172. A dino taught a squirrel to keep time with its tail for dances.",
+"173. The dino discovered a stream that spoke in rhymes.",
+"174. A dino built tiny flags of friendship and hung them on branches.",
+"175. The dino learned to whistle recipes to make sunsets sizzle softly.",
+"176. A dino taught the moon to wink at sailors passing by.",
+"177. The dino painted a ladder of moonbeams to reach a new idea.",
+"178. A dino found a shell that smiled when listened to carefully.",
+"179. The dino learned the names of every rock in the valley.",
+"180. A dino built a cozy den and invited neighbors for soup.",
+"181. The dino taught ants to march to the beat of a leaf drum.",
+"182. A dino discovered the taste of bravery in a tiny pastry.",
+"183. The dino painted a map of silly places to make friends laugh.",
+"184. A dino taught a snail to carry tiny lanterns on late walks.",
+"185. The dino found a pebble that told fortunes of tomorrow's giggles.",
+"186. A dino built a boat of promises and set it on the small river.",
+"187. The dino learned to braid clouds into soft hats for chilly nights.",
+"188. A dino taught a beetle a new song that made flowers sway.",
+"189. The dino found a hidden clearing where the grass whispered stories.",
+"190. A dino built a bell from twigs that rang when friends came near.",
+"191. The dino learned to paint shadows that made the rain grin.",
+"192. A dino found a stone shaped like a heart and kept it safe.",
+"193. The dino taught the wind to carry good news to distant hills.",
+"194. A dino built a tiny library for insects and tucked stories inside.",
+"195. The dino found a pebble that stored a whole summer inside.",
+"196. A dino learned that the best maps are written in laughter.",
+"197. The dino crafted a little crown from daisies and shared it with a friend.",
+"198. A dino found a tune that turned gray days bright again.",
+"199. The dino learned to listen to the language of falling leaves.",
+"200. A dino made a promise to always leave an extra berry for a friend."
+];
+
+const storiesGrid = document.getElementById("storiesGrid");
+function renderStories(list){
+  storiesGrid.innerHTML = "";
+  list.forEach(s=>{
+    const d = document.createElement("div");
+    d.className = "story-card";
+    d.textContent = s;
+    storiesGrid.appendChild(d);
+  });
+}
+renderStories(stories);
+
+document.getElementById("storyReload").addEventListener("click", ()=>{
+  const shuffled = stories.slice().sort(()=>Math.random()-0.5);
+  renderStories(shuffled.slice(0,200));
+});
+document.getElementById("storySort").addEventListener("change", (e)=>{
+  const v = e.target.value;
+  let out = stories.slice();
+  if(v==="az") out.sort();
+  else if(v==="za") out.sort().reverse();
+  else if(v==="len") out.sort((a,b)=>a.length-b.length);
+  renderStories(out);
+});
+document.getElementById("storySearch").addEventListener("input",(e)=>{
+  const q = e.target.value.toLowerCase().trim();
+  if(!q) return renderStories(stories);
+  const filtered = stories.filter(s=>s.toLowerCase().includes(q));
+  renderStories(filtered);
+});
+
+/* ----------------------
+   Helpers & init
+   ---------------------- */
+function rand(min,max){ return Math.random()*(max-min)+min; }
+addChat("bot","Welcome! Try the Avatar, Music, Game, or Stories. Type 'joke' for a dino joke.");
+</script>
+</body>
+</html>
